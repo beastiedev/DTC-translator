@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    body {
+        font-family:Arial;
+        background-color: #eee;
+    }
+    table {
+        border-collapse: collapse;
+    }
+    td {
+        border:1px solid #000;
+        text-align:center;
+        height:30px;
+    }
+    .bit td {
+        width:30px;
+    }
+    .byte {
+        margin:5px;
+    }
+</style>
+<script>
+
+
+function translate_(value) {
+  var code_form = document.getElementById('code');
+  code_form.value = value || code_form.value.replace(/^\s+|\s+$/g, '');
+  var code = code_form.value.toUpperCase().split(".")[0];
+  var state = code_form.value.toUpperCase().split(".")[1]
+
+  if (!codeIsValid(code, code_form, state)) {
+    return;
+  }
+
+  var n = code.split("");
+  var bits = codeToBits(n);
+  var tran = defineDtcCodeCategory(n);
+  var isByte3 = (code.length > 4) ? true : false;
+
+  byte3toggle(isByte3);
+  displayDtcCodeState(state);
+  displayDtcCodeChars(code);
+  displayBits(bits);
+  displayTranslatedChars(tran, bits);
+  displayResultMesssage(tran, bits);
+}
+
+function codeIsValid(code, code_form, state) {
+  if ((code.match(/^([0-9A-F]{4}|[0-9A-F]{6})$/i) == null)) {
+    code_form.style.backgroundColor = 'pink';
+    return false;
+  }
+  if ((typeof state != "undefined" && state.match(/^[0-9A-F]{2}$/i) == null)) {
+    code_form.style.backgroundColor = 'pink';
+    return false;
+  }
+  code_form.style.backgroundColor = 'white';
+  return true;
+}
+
+function displayDtcCodeState(state) {
+  document.getElementById('active').style.display = 'none';
+  if (typeof state != "undefined" && state.length) {
+    document.getElementById('active').style.display = 'inline';
+    if (stateIsActive(state)) {
+      document.getElementById('state').style.backgroundColor = 'greenyellow';
+    } else {
+      document.getElementById('state').style.backgroundColor = 'pink';
+    }
+    document.getElementById('state').textContent = stateIsActive(state);
+  }
+}
+
+function defineDtcCodeCategory(n) {
+  if ('0' <= n[0] && n[0] <= '3') {
+    return 'P';
+  } else if ('4' <= n[0] && n[0] <= '7') {
+    return 'C';
+  } else if ('8' <= n[0] && n[0] <= 'B') {
+    return 'B';
+  } else if ('C' <= n[0] && n[0] <= 'F') {
+    return 'U';
+  }
+}
+
+function codeToBits(n) {
+  var bitsSet = [];
+  for (var i = 0; i < n.length; i++) {
+    var int = parseInt("0x" + n[i]);
+    var bits = strPad(int.toString(2), 4);
+    bitsSet.push(bits.split(""));
+  }
+  return bitsSet;
+}
+
+function displayBits(bitsSet) {
+  for (var i = 0; i < bitsSet.length; i++) {
+    for (var j = 0; j < bitsSet[i].length; j++) {
+      document.getElementById('b' + i + '-' + j).innerHTML = bitsSet[i][j];
+    }
+  }
+}
+
+function displayDtcCodeChars(code) {
+  for (var i = 0; i < code.length; i++) {
+    document.getElementById('char' + i).innerHTML = '$' + code[i];
+  }
+}
+
+function displayTranslatedChars(tran, bitsSet) {
+  document.getElementById('t').innerHTML = tran;
+  document.getElementById('t0').innerHTML = parseInt(bitsSet[0][2] + bitsSet[0][3], 2);
+  for (var i = 1; i < bitsSet.length; i++) {
+    document.getElementById('t' + i).innerHTML = parseInt(bitsSet[i].join(""), 2);
+  }
+}
+
+function displayResultMesssage(tran, bitsSet) {
+  var res = 'Translated code: <b>' + tran;
+  res += parseInt(bitsSet[0][2] + bitsSet[0][3], 2);
+  for (var i = 1; i < bitsSet.length; i++) {
+    if (i == 4) {
+      res += "-"
+    }
+    res += parseInt(bitsSet[i].join(""), 2);
+  }
+  document.getElementById('result').innerHTML = res + '</b>';
+}
+
+function byte3toggle(isByte3) {
+  document.getElementById('low-to-mid-title').innerHTML = isByte3 ? 'DTC MIDDLE BYTE' : 'DTC LOW BYTE';
+  document.getElementById('byte3').style.display = isByte3 ? 'block' : 'none';
+}
+
+function stateIsActive(sub) {
+  if (!/^[0-9A-Fa-f]{1,64}$/.test(sub)) {
+    return 0;
+  }
+  var bin = parseInt(sub, 16).toString(2);
+  return /.11.0000|.......1/.test(strPad(bin, 8))
+}
+
+function enter_event() {
+  document.getElementById('code').addEventListener("keyup", function(event) {
+    if (event.keyCode == 13) {
+      translate_();
+    }
+  }, true);
+}
+
+function clear_() {
+  byte3toggle(false);
+  document.getElementById('code').value = null;
+  document.getElementById('result').textContent = null;
+  document.getElementById('code').style.backgroundColor = 'white';
+  document.getElementById('active').style.display = 'none';
+  document.getElementById('active').style.backgroundColor = 'white';
+  var arr = document.getElementsByTagName("td");
+  for (var i = 0; i < arr.length; i++) {
+    var id = arr[i].id;
+    if (id == 'low-to-mid-title') continue;
+    if (id !== '') {
+      document.getElementById(id).textContent = null
+    }
+  }
+}
+
+
+function strPad(i, l, s, rpad) {
+  var o = i.toString();
+  if (!s) {
+    s = '0';
+  }
+  while (o.length < l) {
+    if (rpad) {
+      o = o + s;
+    } else {
+      o = s + o;
+    }
+  }
+  return o;
+}
+
+</script>
+</head>
+    <body onload="">
+        <h3 style="margin-left:50px;">DTC code translator</h3>
+        <p style="margin-left:50px;">Translates from data bus value to DTC code. Based on SAE J2012 specification.</p>
+        <br>
+        <span style="margin-left:50px; font-size: 12px; font-style:italic;">to convert, enter 2-byte or 3-byte data bus value, e.g. A199.40 or A73413.2B</span>
+        <br>
+        <span style="margin-left:50px;">$</span>
+        <input onClick="enter_event()" type="text" id="code" value="A73413.2B">
+        <input type="button" value="Translate" onClick="translate_(); return false;">
+        <input type="button" value="Clear" onClick="clear_(); return false;">
+        <span style="background-color: #ADFF2F; margin-left: 30px;" id="result"></span> <span style="background-color: #ADFF2F; margin-left: 30px; display:none;" id="active">Active: <span id="state"></span></span><br><br><br>
+        <div>
+        <div style="float:left;" id="byte1" class="byte">
+            <table width="250" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td colspan="8">DTC HIGH BYTE</td>
+                </tr>
+                <tr>
+                    <td colspan="4" id="char0"></td>
+                    <td colspan="4" id="char1"></td>
+                </tr>
+                <tr class="bit">
+                    <td id="b0-0"></td>
+                    <td id="b0-1"></td>
+                    <td id="b0-2"></td>
+                    <td id="b0-3"></td>
+                    <td id="b1-0"></td>
+                    <td id="b1-1"></td>
+                    <td id="b1-2"></td>
+                    <td id="b1-3"></td>
+                </tr>
+                <tr>
+                    <td colspan="2" id="t"></td>
+                    <td colspan="2" id="t0"></td>
+                    <td colspan="4" id="t1"></td>
+                </tr>
+            </table>
+        </div>
+        <div style="float:left;" id="byte2" class="byte">
+            <table width="250" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td colspan="8" id="low-to-mid-title">DTC LOW BYTE</td>
+                </tr>
+                <tr>
+                    <td colspan="4" id="char2"></td>
+                    <td colspan="4" id="char3"></td>
+                </tr>
+                <tr class="bit">
+                    <td id="b2-0"></td>
+                    <td id="b2-1"></td>
+                    <td id="b2-2"></td>
+                    <td id="b2-3"></td>
+                    <td id="b3-0"></td>
+                    <td id="b3-1"></td>
+                    <td id="b3-2"></td>
+                    <td id="b3-3"></td>
+                </tr>
+                <tr>
+                    <td colspan="4" id="t2"></td>
+                    <td colspan="4" id="t3"></td>
+                </tr>
+            </table>
+        </div>
+        <div style="float:left;display:none;" id="byte3" class="byte">
+            <table width="250" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td colspan="8">DTC LOW BYTE</td>
+                </tr>
+                <tr>
+                    <td colspan="4" id="char4"></td>
+                    <td colspan="4" id="char5"></td>
+                </tr>
+                <tr class="bit">
+                    <td id="b4-0"></td>
+                    <td id="b4-1"></td>
+                    <td id="b4-2"></td>
+                    <td id="b4-3"></td>
+                    <td id="b5-0"></td>
+                    <td id="b5-1"></td>
+                    <td id="b5-2"></td>
+                    <td id="b5-3"></td>
+                </tr>
+                <tr>
+                    <td colspan="4" id="t4"></td>
+                    <td colspan="4" id="t5"></td>
+                </tr>
+            </table>
+        </div>
+        </div>
+    </body>
+</html>
